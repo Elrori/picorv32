@@ -8,6 +8,9 @@ SHELL = bash
 PYTHON = python3
 TOOLCHAIN_PREFIX = $(RISCV_GNU_TOOLCHAIN_INSTALL_PREFIX)i/bin/riscv32-unknown-elf-
 
+picorv32.txt: picorv32.bin makehex.py
+	$(PYTHON) makehex.py $< 4096 'hex' > $@
+ 
 picorv32.hex: picorv32.bin makehex.py
 	$(PYTHON) makehex.py $< 4096 'hex' > $@
  
@@ -34,6 +37,6 @@ irq.o: irq.c irq.h
 	$(TOOLCHAIN_PREFIX)gcc -c -mabi=ilp32 -march=rv32i -Os --std=c99 $(GCC_WARNS) -ffreestanding -nostdlib -o $@ $<
 
 clean:
-	rm -vrf *.o
+	rm -vrf *.o *.bin *.elf *.map *.hex *.mif *.txt
 
 .PHONY: clean

@@ -6,7 +6,12 @@
  */
 
 #include "extraops.S"
-
+#define WRITE32(reg_addr, reg_data, addr, data) \
+	lui reg_addr, %hi(addr);   \
+	addi reg_addr, reg_addr, %lo(addr); \
+	lui reg_data, %hi(data);   \
+	addi reg_data, reg_data, %lo(data); \
+	sw reg_data, 0(reg_addr)
 /*
  * Interrupt vector.
  */
@@ -214,19 +219,39 @@ _crt0:
   // addi t0, t0, 4
   // bltu t0, t1, 2b
 
-	/* print "GOOD\n" */
-	li   a0,0x07000004
-	addi a1,zero,'G'
-	addi a2,zero,'O'
-	addi a3,zero,'O'
-	addi a4,zero,'D'
-	addi a5,zero,'\n'
-	sw a1,0(a0)
-	sw a2,0(a0)
-	sw a3,0(a0)
-	sw a4,0(a0)
-	sw a5,0(a0)
-
+  /* MDIO RXCDELAY INIT */
+  WRITE32(x1, x2, 0x040000f8, 0x0000a001)
+  WRITE32(x1, x2, 0x040000fc, 0x00008030)
+  WRITE32(x1, x2, 0x04000178, 0x0000a001)
+  WRITE32(x1, x2, 0x0400017c, 0x00008030)
+  WRITE32(x1, x2, 0x040010f8, 0x0000a001)
+  WRITE32(x1, x2, 0x040010fc, 0x00008030)
+  WRITE32(x1, x2, 0x04001178, 0x0000a001)
+  WRITE32(x1, x2, 0x0400117c, 0x00008030) 
+  WRITE32(x1, x2, 0x040020f8, 0x0000a001)
+  WRITE32(x1, x2, 0x040020fc, 0x00008030)
+  WRITE32(x1, x2, 0x04002178, 0x0000a001)
+  WRITE32(x1, x2, 0x0400217c, 0x00008130)
+  WRITE32(x1, x2, 0x040030f8, 0x0000a001)
+  WRITE32(x1, x2, 0x040030fc, 0x00008130)
+  WRITE32(x1, x2, 0x04003178, 0x0000a001)
+  WRITE32(x1, x2, 0x0400317c, 0x00008130)
+  //WRITE32(x1, x2, 0x040040f8, 0x0000a001)
+  //WRITE32(x1, x2, 0x040040fc, 0x00008130)
+	
+  /* print "GOOD\n" */
+  li   a0,0x07000004
+  addi a1,zero,'G'
+  addi a2,zero,'O'
+  addi a3,zero,'O'
+  addi a4,zero,'D'
+  addi a5,zero,'\n'
+  sw a1,0(a0)
+  sw a2,0(a0)
+  sw a3,0(a0)
+  sw a4,0(a0)
+  sw a5,0(a0)
+  
   /* set main stack */
   la sp, _stack_top
 
@@ -242,18 +267,25 @@ _crt0:
 1:
   /* loop forever */
   j 1b
-
+  
+/*
+ * Trigger picorv32 timer
+ */
+.global _trigger_timer
+_trigger_timer:
+	picorv32_timer_insn(zero, a0); 
+    ret
 
 /*
  * Enable interrupts by copying the software mask to the hardware mask
  */
 .global _irq_enable
 _irq_enable:
-  /* Set _irq_enabled to true */
+  /* Set _irq_enabled to true (*_irq_enabled = 1)  */
   la t0, _irq_enabled
   addi t1, zero, 1
   sw t1, 0(t0)
-  /* Set the HW IRQ mask to _irq_mask */
+  /* Set the HW IRQ mask to _irq_mask (qmask = *_irq_mask) */
   la t0, _irq_mask
   lw t0, 0(t0)
   picorv32_maskirq_insn(zero, t0)
@@ -265,10 +297,10 @@ _irq_enable:
  */
 .global _irq_disable
 _irq_disable:
-  /* Mask all IRQs */
+  /* Mask all IRQs (qmask = 0xffffffff) */
   li t0, 0xffffffff
   picorv32_maskirq_insn(zero, t0)
-  /* Set _irq_enabled to false */
+  /* Set _irq_enabled to false (*_irq_enabled = 0) */
   la t0, _irq_enabled
   sw zero, (t0)
   ret
@@ -281,10 +313,10 @@ _irq_disable:
  */
 .global _irq_setmask
 _irq_setmask:
-  /* Update _irq_mask */
+  /* Update _irq_mask (*_irq_mask = a0) */
   la t0, _irq_mask
   sw a0, (t0)
-  /* Are interrupts enabled? */
+  /* Are interrupts enabled? (if _irq_enabled == 1; qmask = a0) */
   la t0, _irq_enabled
   lw t0, 0(t0)
   beq t0, zero, 1f

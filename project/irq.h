@@ -1,10 +1,6 @@
-#ifndef __IRQ_H
-#define __IRQ_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 // PicoRV32 has a very limited interrupt support, implemented via custom
 // instructions. It also doesn't have a global interrupt enable/disable, so
 // we have to emulate it via saving and restoring a mask and using 0/~1 as a
@@ -23,7 +19,12 @@ extern unsigned int _irq_enabled;
 extern void _irq_enable(void);
 extern void _irq_disable(void);
 extern void _irq_setmask(unsigned int);
-extern void interupts(void);
+
+#define CONFIG_CPU_INTERRUPTS 32
+typedef void (*isr_t)(void);
+extern int irq_attach(unsigned int irq, isr_t isr) __attribute__((weak));
+extern int irq_detach(unsigned int irq) __attribute__((weak));
+
 static inline unsigned int irq_getie(void)
 {
 	return _irq_enabled != 0;
@@ -59,5 +60,3 @@ static inline unsigned int irq_pending(void)
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __IRQ_H */
